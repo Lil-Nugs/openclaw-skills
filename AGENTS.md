@@ -18,3 +18,9 @@ This directory is a git-backed skills repository.
 
 - Remote: `git@github.com:Lil-Nugs/openclaw-skills.git`
 - Branch: `main`
+
+## Skill mutation guardrail
+
+- Do not modify any skill files unless the user explicitly asks to regenerate/update a skill.
+- For normal GameHub work, keep changes repo-local to the GameHub repo (games, games.json, scripts/docs).
+

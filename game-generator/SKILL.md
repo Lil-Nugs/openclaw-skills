@@ -436,40 +436,64 @@ async function getLeaderboard(limit = 10) {
 6. On submit: call `submitScore()`, then call `getLeaderboard()` and display top 10
 7. Show a "Play Again" button that fully resets the game
 
-### 5. Deploy to GitHub Pages
+### 5. Deploy to GitHub Pages (lock + retry required)
+
+Use a serialized deploy flow so multiple agents on the same machine do not race each other.
 
 ```bash
+# Serialize deploys across local agents
+LOCKFILE=/tmp/openclaw-game-hub.deploy.lock
+exec 9>"$LOCKFILE"
+flock -w 180 9 || { echo "Deploy lock timeout" >&2; exit 1; }
+
 # Create a temp directory
 TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
 
-# Clone the hub repo
+# Clone the hub repo fresh
 git clone "git@github.com:{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}.git" "$TMPDIR/repo"
 cd "$TMPDIR/repo"
 
-# Create the game directory
+# Create the game directory + copy game file
 mkdir -p "games/{slug}"
-
-# Copy the game file
 cp /path/to/generated/game.html "games/{slug}/index.html"
 
-# Update games.json — add the new entry to the array
-# Read the existing games.json, add new entry:
-# {
-#   "slug": "{slug}",
-#   "title": "{Game Title}",
-#   "description": "{Brief description}",
-#   "creator": "{discord username who requested it}",
-#   "date": "{ISO date string}"
-# }
-# Write back games.json with the new entry appended
+# Update games.json with an UPSERT by slug (avoid duplicates)
+node -e '
+const fs = require("fs");
+const path = "games.json";
+const slug = "{slug}";
+const entry = {
+  slug,
+  title: "{Game Title}",
+  description: "{Brief description}",
+  creator: "{discord username who requested it}",
+  date: "{ISO date string}"
+};
+const data = JSON.parse(fs.readFileSync(path, "utf8"));
+const next = [...data.filter(g => g.slug !== slug), entry];
+fs.writeFileSync(path, JSON.stringify(next, null, 2) + "\n");
+'
 
-# Commit and push
-git add .
+# Commit
+git add "games/{slug}/index.html" games.json
 git commit -m "Add game: {Game Title}"
-git push origin main
 
-# Clean up
-rm -rf "$TMPDIR"
+# Push with automatic rebase/retry for remote races
+for attempt in 1 2 3 4 5; do
+  if git push origin main; then
+    echo "Deploy succeeded"
+    break
+  fi
+
+  if [ "$attempt" -eq 5 ]; then
+    echo "Deploy failed after retries" >&2
+    exit 1
+  fi
+
+  git pull --rebase origin main
+  sleep $((attempt * 2))
+done
 ```
 
 GitHub Pages should be enabled on the repo (Settings > Pages > Deploy from branch: `main`). Games are static HTML files with CDN dependencies — no build step needed.

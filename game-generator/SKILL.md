@@ -368,9 +368,18 @@ Define all of the following up front (reconciling with any explicit user constra
 
 Always inspect the request for asset inputs (Discord attachments, image URLs, sprite sheets) and treat them as top-priority art direction constraints.
 
+### 1b. Reference game adaptation rules (MANDATORY when prompted)
+
+If the user asks for a game "like X but with Y theme":
+- Extract the **core mechanical pattern** of X (camera style, progression model, upgrade cadence, enemy scaling/pacing).
+- Recreate the **structural loop**, not the exact content.
+- Always convert the result into **endless survival** with smooth time-based difficulty ramp.
+- Replace all art, enemies, upgrades, flavor text, and presentation with the new theme.
+- Never copy names, assets, characters, logos, music, or other distinctive IP.
+
 ### 2. Write a DESIGN HEADER, then implement
 
-At the top of the `<script>` tag, write a short `DESIGN HEADER` comment summarizing the decisions from Step 1. Keep it concise and concrete.
+At the top of the `<script>` tag, write a short `DESIGN HEADER` comment summarizing the decisions from Step 1 (and Step 1b when applicable). Keep it concise and concrete.
 
 Then implement the game fully. Do not leave TODO/FIXME placeholders.
 
@@ -530,6 +539,7 @@ Before deploying, mentally playtest the game by reading through the code. Verify
 - [ ] **Enemy variety exists**: At least 2 hazards/enemies with distinct behaviors
 - [ ] **Risk/reward exists**: At least 1 pickup/upgrade has a meaningful tradeoff
 - [ ] **DESIGN HEADER present**: Top-of-script comment summarizes controls, loop/death, hazards, pickups/risk-reward, scoring, difficulty, visual, and audio choices
+- [ ] **Reference adaptation is structurally correct (when used)**: Keeps mechanics/camera/progression pattern but re-themes all content and removes distinctive IP
 - [ ] **Game over triggers correctly**: Death condition works reliably
 - [ ] **Death feels impactful**: Sound + visual feedback on death
 - [ ] **Leaderboard input is HTML** element, not `prompt()`
@@ -561,3 +571,4 @@ Before deploying, mentally playtest the game by reading through the code. Verify
 10. **No audio context resume**: Browsers block audio until a user gesture. Resume the AudioContext in your MenuScene's start handler.
 11. **Boxy placeholder art shipped to production**: If player/enemy are simple squares with no silhouette design, stop and improve art direction before deploy.
 12. **Unverified random image usage**: Do not pull arbitrary web images without checking rights and adding a fallback for load failures.
+13. **Copying reference-game IP too literally**: Borrow the structural loop only; replace names, assets, characters, and flavor with original/theme-appropriate content.

@@ -446,6 +446,11 @@ LOCKFILE=/tmp/openclaw-game-hub.deploy.lock
 exec 9>"$LOCKFILE"
 flock -w 180 9 || { echo "Deploy lock timeout" >&2; exit 1; }
 
+# Use the game-hub deploy key (public key in GitHub: ~/.ssh/id_ed25519.pub)
+# Git uses the matching private key file locally: ~/.ssh/id_ed25519
+test -f ~/.ssh/id_ed25519 || { echo "Missing ~/.ssh/id_ed25519 deploy key" >&2; exit 1; }
+export GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new'
+
 # Create a temp directory
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT

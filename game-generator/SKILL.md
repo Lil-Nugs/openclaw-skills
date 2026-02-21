@@ -65,7 +65,7 @@ If a playtest in your head ends in under 15 seconds on the easiest settings, the
 - **Primary score = survival time** (in seconds or ticks). Always incrementing while alive.
 - **Bonus points** for active play: collecting items (+10-50), destroying enemies (+25-100), combos/streaks (multiplier).
 - **Never subtract points.** Score only goes up.
-- The final score submitted to the leaderboard should be a single integer. A common formula: `Math.floor(timeAlive * 10 + bonusPoints)`.
+- The final score submitted to the leaderboard MUST be `Math.floor(timeAlive * 10 + bonusPoints)` (or equivalent variable names), and it must be monotonic (never decreases).
 - Display the score prominently during gameplay and on the game over screen.
 
 ### Game Genres
@@ -350,24 +350,29 @@ Games are static HTML files that load Phaser via CDN — no build step is needed
 
 ## Workflow
 
-### 1. Parse the game concept
+### 1. Expand short prompts into a complete concept (MANDATORY)
 
-Extract the core idea. Identify: theme, mechanics, visual style, any specific requests. If the concept is vague ("make a fun game"), pick a genre from the list above that would be entertaining.
+Assume user prompts may be short. Do **NOT** ask follow-up questions. Infer missing details and produce a complete game concept before coding.
+
+If the concept is vague ("make a fun game"), pick a fitting survival genre from the patterns above.
+
+Define all of the following up front (reconciling with any explicit user constraints):
+1. **Controls**: keyboard + touch
+2. **Core loop + death condition**
+3. **2–3 hazards/enemies** with distinct behaviors
+4. **1–2 pickups/upgrades** and at least one **risk/reward** mechanic
+5. **Scoring**: `score = Math.floor(timeAlive * 10 + bonusPoints)` and score must be monotonic
+6. **Difficulty ramp parameters** (`spawnRate`, `speed`, `density`) using smooth time-based lerp/ease
+7. **Visual theme**: palette + font choice + background motion
+8. **Audio SFX style** that matches the theme
+
 Always inspect the request for asset inputs (Discord attachments, image URLs, sprite sheets) and treat them as top-priority art direction constraints.
 
-### 2. Design before you code
+### 2. Write a DESIGN HEADER, then implement
 
-Before writing any HTML, decide:
-- **Genre**: Which survival template fits?
-- **Core mechanic**: What does the player DO each frame? (move, jump, tap, aim, dodge)
-- **Death condition**: What kills the player?
-- **Difficulty parameters**: What values scale with time? What are the min and max?
-- **Visual theme**: Which palette and font?
-- **Art direction**: Shape language, texture/material style, and motion style
-- **Asset strategy**: User assets, sourced assets, or procedural fallback plan
-- **Score formula**: Time-based + what bonuses?
+At the top of the `<script>` tag, write a short `DESIGN HEADER` comment summarizing the decisions from Step 1. Keep it concise and concrete.
 
-Write these decisions as comments at the top of your script before implementing.
+Then implement the game fully. Do not leave TODO/FIXME placeholders.
 
 ### 3. Generate a slug
 
@@ -518,10 +523,13 @@ Before deploying, mentally playtest the game by reading through the code. Verify
 - [ ] **Starts easy**: First 10 seconds are trivially easy at the initial parameter values
 - [ ] **Difficulty ramps smoothly**: Parameters scale with elapsed time via lerp, not steps
 - [ ] **Player always eventually dies**: No win condition. Game ends only on death/failure.
-- [ ] **Score always increases**: Score goes up over time + bonus actions
+- [ ] **Score formula is correct and monotonic**: Uses `Math.floor(timeAlive * 10 + bonusPoints)` and never decreases
 - [ ] **30s minimum run is achievable**: A new player can survive at least 15-20 seconds
 - [ ] **Has a start screen**: Title, instructions, "tap to start"
 - [ ] **Has actual gameplay**: Not just a static screen
+- [ ] **Enemy variety exists**: At least 2 hazards/enemies with distinct behaviors
+- [ ] **Risk/reward exists**: At least 1 pickup/upgrade has a meaningful tradeoff
+- [ ] **DESIGN HEADER present**: Top-of-script comment summarizes controls, loop/death, hazards, pickups/risk-reward, scoring, difficulty, visual, and audio choices
 - [ ] **Game over triggers correctly**: Death condition works reliably
 - [ ] **Death feels impactful**: Sound + visual feedback on death
 - [ ] **Leaderboard input is HTML** element, not `prompt()`

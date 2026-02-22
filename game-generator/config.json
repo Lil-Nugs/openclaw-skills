@@ -2,5 +2,5 @@
   "GITHUB_REPO_OWNER": "Lil-Nugs",
   "GITHUB_REPO_NAME": "game-hub",
   "GITHUB_PAGES_URL": "https://lil-nugs.github.io/game-hub",
-  "LEADERBOARD_API_URL": "https://game-leaderboard.mattgames.workers.dev"
+  "SUPABASE_CREDENTIALS_PATH": "/home/mattc/.openclaw/credentials/supabase.json"
 }

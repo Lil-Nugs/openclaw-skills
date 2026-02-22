@@ -14,7 +14,7 @@ Read `config.json` from this skill's directory to get:
 - `GITHUB_REPO_OWNER` — GitHub username
 - `GITHUB_REPO_NAME` — repo name (`game-hub`)
 - `GITHUB_PAGES_URL` — base URL for published games
-- `LEADERBOARD_API_URL` — Cloudflare Worker URL for scores
+- `SUPABASE_CREDENTIALS_PATH` — path to Supabase credential JSON (must be `~/.openclaw/credentials/supabase.json`)
 
 ## Game Design Philosophy
 
@@ -226,7 +226,9 @@ Every game should follow this structure:
 <div id="ui-overlay"><!-- Game over form: score display, name input, submit button, leaderboard, replay --></div>
 <script>
 const GAME_ID = '{slug}';
-const LEADERBOARD_API = '{LEADERBOARD_API_URL}';
+const SUPABASE_URL = '{SUPABASE_URL}';
+const SUPABASE_PUBLISHABLE_KEY = '{SUPABASE_PUBLISHABLE_KEY}';
+const LEADERBOARD_API = 'https://game-hub-supabase.local';
 
 // --- Leaderboard functions (same as before) ---
 // --- Web Audio sound effects (same as before) ---
@@ -407,22 +409,68 @@ Create a **complete single-file HTML game** using Phaser 3, following the skelet
 - Game over UI is an **HTML overlay** (not a Phaser scene) so the name input and leaderboard form work reliably.
 - On "Play Again": hide overlay, `scene.restart()` the GameScene (Phaser handles full state reset).
 
+Before generating HTML, read Supabase credentials from `SUPABASE_CREDENTIALS_PATH` (from config):
+
+```bash
+SUPABASE_URL=$(jq -r '.url' "{SUPABASE_CREDENTIALS_PATH}")
+SUPABASE_PUBLISHABLE_KEY=$(jq -r '.publishableKey' "{SUPABASE_CREDENTIALS_PATH}")
+```
+
 **Bake these constants at the top of the `<script>` tag:**
 ```javascript
 const GAME_ID = '{slug}';
-const LEADERBOARD_API = '{LEADERBOARD_API_URL from config}';
+const SUPABASE_URL = '{SUPABASE_URL from credentials}';
+const SUPABASE_PUBLISHABLE_KEY = '{SUPABASE_PUBLISHABLE_KEY from credentials}';
+const LEADERBOARD_API = 'https://game-hub-supabase.local';
 ```
 
 **Include these leaderboard functions:**
 ```javascript
+function getClientFingerprint() {
+  const key = 'gamehub.client-fingerprint.v1';
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const created = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  localStorage.setItem(key, created);
+  return created;
+}
+
+async function supabaseRequest(path, { method = 'GET', body, prefer } = {}) {
+  const headers = {
+    apikey: SUPABASE_PUBLISHABLE_KEY,
+    Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+    'Content-Type': 'application/json'
+  };
+  if (prefer) headers.Prefer = prefer;
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error((data && (data.message || data.error)) || `Supabase ${res.status}`);
+  return data;
+}
+
 async function submitScore(playerName, score) {
   try {
-    const res = await fetch(`${LEADERBOARD_API}/api/scores`, {
+    await supabaseRequest('/leaderboard_scores', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId: GAME_ID, playerName, score })
+      prefer: 'return=minimal',
+      body: {
+        game_slug: GAME_ID,
+        player_name: String(playerName || 'Anonymous').slice(0, 20),
+        score: Math.round(score),
+        client_fingerprint: getClientFingerprint()
+      }
     });
-    return await res.json();
+
+    const scores = await getLeaderboard(100);
+    const rank = scores.findIndex((row) => row.playerName === String(playerName || 'Anonymous').slice(0, 20) && row.score === Math.round(score)) + 1;
+    return { ok: true, rank: rank > 0 ? rank : null, totalScores: scores.length };
   } catch (e) {
     console.warn('Leaderboard unavailable:', e);
     return null;
@@ -431,9 +479,15 @@ async function submitScore(playerName, score) {
 
 async function getLeaderboard(limit = 10) {
   try {
-    const res = await fetch(`${LEADERBOARD_API}/api/scores?gameId=${GAME_ID}&limit=${limit}`);
-    const data = await res.json();
-    return data.scores || [];
+    const rows = await supabaseRequest('/rpc/get_game_leaderboard', {
+      method: 'POST',
+      body: { p_game_slug: GAME_ID, p_limit: Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100) }
+    });
+    return (rows || []).map((row) => ({
+      playerName: row.player_name,
+      score: Number(row.score) || 0,
+      date: row.created_at
+    }));
   } catch (e) {
     console.warn('Leaderboard unavailable:', e);
     return [];
